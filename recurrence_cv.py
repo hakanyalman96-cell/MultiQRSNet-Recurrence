@@ -189,6 +189,31 @@ def build_index_from_manifest(manifest: str) -> pd.DataFrame:
     return df
 
 
+def cap_per_patient(df: pd.DataFrame, cap: int, seed: int) -> pd.DataFrame:
+    """Limit how many recordings each patient contributes.
+
+    CARTO exports one 2.5 s window per mapping point, so the number of
+    recordings per patient reflects how long the mapping study ran, not how
+    informative the case is. Without a cap, a patient with 700 points
+    contributes ~78x the training signal of one with 9, and the network can
+    overfit to whichever individuals happen to have long studies. Sampling a
+    fixed number per patient equalises that contribution. The independent unit
+    remains the patient either way.
+    """
+    if not cap or cap <= 0:
+        return df
+    rng = np.random.default_rng(seed)
+    keep = []
+    for _, g in df.groupby("patient", sort=False):
+        idx = g.index.to_numpy()
+        if len(idx) > cap:
+            idx = rng.choice(idx, cap, replace=False)
+        keep.append(idx)
+    out = df.loc[np.concatenate(keep)].sort_index().reset_index(drop=True)
+    print(f"\ncapped at {cap} recordings/patient: {len(df)} -> {len(out)} recordings")
+    return out
+
+
 def report_index(df: pd.DataFrame):
     n_rec, n_pat = len(df), df["patient"].nunique()
     per = df.groupby("patient").size()
@@ -578,6 +603,8 @@ def main():
     ap.add_argument("--patient-id", default="auto",
                     choices=["auto", "parent", "stem", "regex"])
     ap.add_argument("--patient-pattern", default=None)
+    ap.add_argument("--max-per-patient", type=int, default=40,
+                    help="cap recordings contributed by each patient (0 = no cap)")
     ap.add_argument("--workers", type=int, default=0)
     ap.add_argument("--seed", type=int, default=42)
     ap.add_argument("--sanity-check", action="store_true",
@@ -592,6 +619,7 @@ def main():
         df = build_index_from_manifest(args.manifest)
     else:
         df = build_index(args.data, args.patient_id, args.patient_pattern, args.sites)
+    df = cap_per_patient(df, args.max_per_patient, args.seed)
     report_index(df)
 
     # ---- patient-level stratified folds -----------------------------------
