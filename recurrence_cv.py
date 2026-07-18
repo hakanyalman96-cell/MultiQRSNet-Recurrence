@@ -8,11 +8,12 @@ This script replaces the fixed train/test-folder protocol used in
 `data_aug_mdi.py`. The differences are deliberate and each one addresses a
 specific methodological problem:
 
-  1. PATIENT-LEVEL SPLITTING (StratifiedGroupKFold). Multiple ECG recordings
-     exist per patient. Splitting by recording lets the same patient appear in
-     both train and test, which inflates performance ("identity leakage").
-     Here, grouping is by patient ID and every recording of a patient stays in
-     one fold.
+  1. PATIENT-LEVEL SPLITTING. Multiple ECG recordings exist per patient.
+     Splitting by recording lets the same patient appear in both train and
+     test, which inflates performance ("identity leakage"). Here folds are
+     assigned to unique PATIENTS (stratified by outcome) and then mapped back
+     to their recordings, so every recording of a patient stays in one fold and
+     the event rate is preserved in each fold.
   2. MODEL SELECTION ON A VALIDATION SPLIT, never on the test fold. The old
      script saved a checkpoint per epoch named by *test* accuracy and the best
      was picked afterwards - that is selection on the test set and biases the
@@ -63,7 +64,7 @@ from scipy.signal import butter, filtfilt
 from scipy.stats import t as student_t
 from sklearn.metrics import (accuracy_score, average_precision_score, f1_score,
                              precision_score, recall_score, roc_auc_score)
-from sklearn.model_selection import StratifiedGroupKFold
+from sklearn.model_selection import StratifiedKFold
 
 warnings.filterwarnings("ignore", category=RuntimeWarning)
 
@@ -156,6 +157,35 @@ def build_index(data_root: str, id_mode: str, id_pattern: str,
             + "\n".join(f"  {p}" for p in bad.index[:20])
             + "\nFix --patient-id / --patient-pattern before proceeding."
         )
+    return df
+
+
+def build_index_from_manifest(manifest: str) -> pd.DataFrame:
+    """Load a manifest.csv produced by prepare_dataset.py.
+
+    Required columns: path, patient, label. Optional: site, approach.
+    Relative paths are resolved against the manifest's own directory.
+    """
+    df = pd.read_csv(manifest)
+    need = {"path", "patient", "label"}
+    missing = need - set(df.columns)
+    if missing:
+        raise SystemExit(f"{manifest}: missing required column(s) {sorted(missing)}")
+    root = os.path.dirname(os.path.abspath(manifest))
+    df["path"] = [p if os.path.isabs(p) else os.path.join(root, p) for p in df["path"]]
+    gone = [p for p in df["path"] if not os.path.exists(p)]
+    if gone:
+        raise SystemExit(f"{len(gone)} file(s) in the manifest do not exist, e.g.\n  {gone[0]}")
+    df["label"] = df["label"].astype(int)
+    if "site" not in df.columns:
+        df["site"] = "NA"
+    df["source_folder"] = "manifest"
+
+    bad = df.groupby("patient")["label"].nunique()
+    bad = bad[bad > 1]
+    if len(bad):
+        raise SystemExit("These patients carry conflicting labels in the manifest:\n"
+                         + "\n".join(f"  {p}" for p in bad.index[:20]))
     return df
 
 
@@ -350,6 +380,25 @@ class RecurrenceNet(nn.Module):
 # --------------------------------------------------------------------------
 # Metrics
 # --------------------------------------------------------------------------
+def patient_level_folds(df: pd.DataFrame, n_splits: int, seed: int):
+    """Assign folds to PATIENTS (not recordings), stratified by outcome.
+
+    StratifiedGroupKFold stratifies at the sample level while grouping, so when
+    patients contribute unequal numbers of recordings the event rate per fold
+    can drift far from the cohort rate. Assigning folds to unique patients and
+    then mapping back to their recordings gives exact patient-level
+    stratification and makes leakage impossible by construction.
+    """
+    pat = df.drop_duplicates("patient")[["patient", "label"]].reset_index(drop=True)
+    skf = StratifiedKFold(n_splits=n_splits, shuffle=True, random_state=seed)
+    pat["fold"] = -1
+    for k, (_, te) in enumerate(skf.split(pat, pat["label"])):
+        pat.loc[te, "fold"] = k
+    fold_of = dict(zip(pat["patient"], pat["fold"]))
+    f = df["patient"].map(fold_of).values
+    return [(np.where(f != k)[0], np.where(f == k)[0]) for k in range(n_splits)]
+
+
 def compute_metrics(y, p, thr=0.5) -> dict:
     yhat = (p >= thr).astype(int)
     out = {
@@ -492,7 +541,9 @@ def train_fold(tr_tab, va_tab, te_tab, args, device, cache, fold):
 def main():
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--data", required=True, help="path to train-test-folder")
+    src = ap.add_mutually_exclusive_group(required=True)
+    src.add_argument("--data", help="path to a train-test-folder style directory")
+    src.add_argument("--manifest", help="path to manifest.csv from prepare_dataset.py")
     ap.add_argument("--out", default="results_recurrence")
     ap.add_argument("--sites", nargs="*", default=SITES)
     ap.add_argument("--folds", type=int, default=5)
@@ -526,13 +577,14 @@ def main():
     os.makedirs(args.out, exist_ok=True)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    df = build_index(args.data, args.patient_id, args.patient_pattern, args.sites)
+    if args.manifest:
+        df = build_index_from_manifest(args.manifest)
+    else:
+        df = build_index(args.data, args.patient_id, args.patient_pattern, args.sites)
     report_index(df)
 
     # ---- patient-level stratified folds -----------------------------------
-    pat = df.drop_duplicates("patient")[["patient", "label"]].reset_index(drop=True)
-    sgkf = StratifiedGroupKFold(n_splits=args.folds, shuffle=True, random_state=args.seed)
-    folds = list(sgkf.split(df, df["label"], groups=df["patient"]))
+    folds = patient_level_folds(df, args.folds, args.seed)
 
     comp = []
     for k, (tr_i, te_i) in enumerate(folds, 1):
@@ -569,8 +621,8 @@ def main():
     for k, (tr_i, te_i) in enumerate(folds, 1):
         tr_all = df.iloc[tr_i]
         # inner validation split, also patient-grouped
-        inner = StratifiedGroupKFold(n_splits=5, shuffle=True, random_state=args.seed)
-        i_tr, i_va = next(inner.split(tr_all, tr_all["label"], groups=tr_all["patient"]))
+        inner = patient_level_folds(tr_all.reset_index(drop=True), 5, args.seed)
+        i_tr, i_va = inner[0]
         p, y, idx, thr, ep = train_fold(tr_all.iloc[i_tr], tr_all.iloc[i_va],
                                         df.iloc[te_i], args, device, cache, k)
         oof[te_i[idx]] = p
