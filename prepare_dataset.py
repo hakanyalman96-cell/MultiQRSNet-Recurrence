@@ -103,18 +103,105 @@ def load_clinical(path: str) -> pd.DataFrame:
     return out.reset_index(drop=True)
 
 
+ZIP_STEM_RE = re.compile(r"^(.*?)\.zip", re.IGNORECASE)
+COPY_PREFIX_RE = re.compile(r"^(copy of|kopya|kopyası)\s+", re.IGNORECASE)
+
+
+def zip_stem(filename: str) -> str:
+    """Recover the patient name from a possibly-mangled archive filename.
+
+    Cloud storage often renames duplicates, e.g.
+        'ahmet yilmaz.zip adli dosyanin kopyasi'   (Google Drive, Turkish)
+        'ahmet yilmaz.zip (1)'
+        'Copy of ahmet yilmaz.zip'
+    Taking everything before the first '.zip' recovers the name in all of these.
+    """
+    name = COPY_PREFIX_RE.sub("", filename)
+    m = ZIP_STEM_RE.match(name)
+    return m.group(1) if m else os.path.splitext(name)[0]
+
+
 def scan_zips(dirs):
-    """Return [(zip_path, approach_folder, normalised_stem), ...]."""
-    found = []
+    """Return [(archive_path, source_folder, normalised_stem), ...].
+
+    Scans recursively, and accepts archives whose filename has been altered by
+    cloud-storage duplication (so the name no longer *ends* in '.zip'). Every
+    candidate is verified with zipfile.is_zipfile before being accepted.
+    """
+    found, not_archives = [], []
     for d in dirs:
         if not os.path.isdir(d):
             print(f"WARNING: not a directory, skipping: {d}")
             continue
-        approach = os.path.basename(os.path.normpath(d))
-        for f in sorted(os.listdir(d)):
-            if f.lower().endswith(".zip"):
-                found.append((os.path.join(d, f), approach, norm_name(os.path.splitext(f)[0])))
+        top = os.path.basename(os.path.normpath(d))
+        for root, _, files in os.walk(d):
+            for f in sorted(files):
+                if ".zip" not in f.lower():
+                    continue
+                p = os.path.join(root, f)
+                if not zipfile.is_zipfile(p):
+                    not_archives.append(p)
+                    continue
+                found.append((p, top, norm_name(zip_stem(f))))
+    if not_archives:
+        print(f"NOTE: {len(not_archives)} file(s) look like archives by name but "
+              f"are not readable ZIPs, e.g.\n  {os.path.basename(not_archives[0])}")
     return found
+
+
+def dedupe(matched):
+    """Keep one archive per patient; report patients found in several folders."""
+    by_key = {}
+    dupes = []
+    for path, folder, key, how in matched:
+        if key in by_key:
+            dupes.append((key, by_key[key][1], folder))
+        else:
+            by_key[key] = (path, folder, key, how)
+    if dupes:
+        print(f"\nSame patient present in more than one folder : {len(dupes)}")
+        print("  (keeping the first occurrence, ignoring the copy)")
+        for key, first, second in dupes[:15]:
+            print(f"    {mask(key)}: {first}  +  {second}")
+    return list(by_key.values()), dupes
+
+
+def provenance_report(matched, clin):
+    """Check whether the outcome label is confounded with the source folder.
+
+    If every recurrence archive comes from one folder and every cured archive
+    from another, any classifier can separate the two by learning folder- or
+    batch-specific signal rather than physiology.
+    """
+    lab = clin.set_index("key")["label"].to_dict()
+    rows = [{"folder": f, "label": lab[k]} for _, f, k, _ in matched if k in lab]
+    if not rows:
+        return
+    t = pd.crosstab(pd.DataFrame(rows)["folder"], pd.DataFrame(rows)["label"])
+    for c in (0, 1):
+        if c not in t.columns:
+            t[c] = 0
+    t = t[[0, 1]].rename(columns={0: "cured", 1: "recurrence"})
+    t["total"] = t.sum(axis=1)
+    print("\n=== PROVENANCE: source folder x outcome ===")
+    print(t.to_string())
+
+    # how separable is the label from the folder alone?
+    n = int(t["total"].sum())
+    majority = int(t[["cured", "recurrence"]].max(axis=1).sum())
+    acc = majority / n if n else 0
+    print(f"\nA classifier that only looked at the source folder would be "
+          f"{100 * acc:.1f}% accurate.")
+    if acc > 0.90:
+        print("  !! WARNING: the label is almost perfectly predicted by the folder.")
+        print("     Any model result is then uninterpretable: the network may be")
+        print("     learning acquisition/batch differences rather than ECG features.")
+        print("     Before trusting results, confirm that recurrence and cured")
+        print("     recordings share the same export settings, devices and era,")
+        print("     and ideally assemble both classes from the same source.")
+    elif acc > 0.75:
+        print("  ! Note: folder and outcome overlap substantially. Keep this in mind")
+        print("    when interpreting performance.")
 
 
 def match(zips, clin, fuzzy_cutoff=0.90):
@@ -194,6 +281,7 @@ def main():
         print(f"  {a}: {n}")
 
     matched, unmatched = match(zips, clin, args.fuzzy_cutoff)
+    matched, _ = dedupe(matched)
     n_fuzzy = sum(1 for m in matched if m[3] == "fuzzy")
     print(f"\nmatched to a clinical row : {len(matched)} "
           f"({n_fuzzy} by approximate name match)")
@@ -230,6 +318,8 @@ def main():
     print(f"patients      : {len(eff)}")
     print(f"  cured       : {(eff.label == 0).sum()}")
     print(f"  recurrence  : {(eff.label == 1).sum()} ({100 * eff.label.mean():.1f}%)")
+
+    provenance_report(matched, clin)
 
     if args.dry_run:
         print("\n--dry-run set; nothing was extracted.")
