@@ -192,10 +192,26 @@ def butter_bandpass(x, low=0.5, high=120.0, fs=FS, order=5):
 
 
 def read_ecg(path: str) -> np.ndarray:
-    """Read a CARTO export .txt into a (12, 2500) array."""
+    """Read a CARTO export .txt into a (12, 2500) array.
+
+    Assumes line index 2 (the third line) is the column header row and that
+    lead columns are named as in LEAD_NAMES.
+    """
     with open(path, "r") as f:
         lines = f.readlines()
+    if len(lines) < 4:
+        raise SystemExit(f"{path}: fewer than 4 lines; not a CARTO export?")
     headers = lines[2].split()
+    missing = [n for n in LEAD_NAMES if n not in headers]
+    if missing:
+        raise SystemExit(
+            f"\nCould not find these lead columns in the header row of\n  {path}\n"
+            f"missing: {missing}\n"
+            f"header row (line 3) actually contains:\n  {headers[:40]}\n\n"
+            "The parser expects the third line to be the header and leads named "
+            "like 'V1(22)', 'I(110)'. If your export differs, edit LEAD_NAMES "
+            "(and the header line index) at the top of this file."
+        )
     idx = [headers.index(name) for name in LEAD_NAMES]
     out = np.zeros((N_LEADS, N_SAMPLES), dtype=np.float64)
     n = 0
