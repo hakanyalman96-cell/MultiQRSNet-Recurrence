@@ -13,7 +13,7 @@ Open `Run_Recurrence_CV.ipynb` in Google Colab and run the cells in order.
 It mounts Google Drive (where the dataset lives), locates `train-test-folder`,
 verifies patient grouping, and runs the full cross-validation.
 
-[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/USERNAME/MultiQRSNet-Recurrence/blob/main/Run_Recurrence_CV.ipynb)
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/hakanyalman96-cell/MultiQRSNet-Recurrence/blob/main/Run_Recurrence_CV.ipynb)
 
 > Replace `USERNAME` in the badge URL above with your GitHub username after
 > pushing this repository.
@@ -21,7 +21,7 @@ verifies patient grouping, and runs the full cross-validation.
 To run locally instead:
 
 ```bash
-git clone https://github.com/USERNAME/MultiQRSNet-Recurrence.git
+git clone https://github.com/hakanyalman96-cell/MultiQRSNet-Recurrence.git
 cd MultiQRSNet-Recurrence
 pip install -r requirements.txt
 python recurrence_cv.py --data /path/to/train-test-folder --sanity-check
