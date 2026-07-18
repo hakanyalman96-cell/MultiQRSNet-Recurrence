@@ -222,11 +222,22 @@ def butter_bandpass(x, low=0.5, high=120.0, fs=FS, order=5):
 
 
 def read_ecg(path: str) -> np.ndarray:
-    """Read a CARTO export .txt into a (12, 2500) array.
+    """Read one recording into a (12, 2500) array.
 
-    Assumes line index 2 (the third line) is the column header row and that
-    lead columns are named as in LEAD_NAMES.
+    Accepts either a pre-converted .npy array (fast path, written by
+    prepare_dataset.py) or a raw CARTO ECG_Export .txt, in which case line
+    index 2 (the third line) must be the column header row with leads named
+    as in LEAD_NAMES. CARTO exports one 2.5 s window per mapping point, which
+    is already exactly N_SAMPLES at FS, so no windowing is applied here.
     """
+    if path.lower().endswith(".npy"):
+        a = np.load(path)
+        if a.ndim != 2 or a.shape[0] != N_LEADS:
+            raise SystemExit(f"{path}: expected shape ({N_LEADS}, N), got {a.shape}")
+        if a.shape[1] < N_SAMPLES:
+            raise SystemExit(f"{path}: only {a.shape[1]} samples, need {N_SAMPLES}")
+        return np.ascontiguousarray(a[:, :N_SAMPLES], dtype=np.float64)
+
     with open(path, "r") as f:
         lines = f.readlines()
     if len(lines) < 4:
