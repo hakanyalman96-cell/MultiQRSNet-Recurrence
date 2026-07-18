@@ -189,6 +189,47 @@ def build_index_from_manifest(manifest: str) -> pd.DataFrame:
     return df
 
 
+# Outflow-tract grouping used in the companion localization study:
+# RVOT, intramural, and an LVOT group that pools the aortic cusps, the
+# aortomitral continuity and the LV summit.
+OUTFLOW_SITES = {
+    "RVOT", "INTRAMURAL", "LVOT", "LCC", "RCC", "NCC", "AMC", "LV SUMMIT",
+}
+
+
+def restrict_cohort(df: pd.DataFrame, inferior_only: bool,
+                    outflow_only: bool, sites) -> pd.DataFrame:
+    """Narrow the cohort before splitting.
+
+    Idiopathic PVCs from papillary muscles, annuli, fascicles and the
+    parahisian region differ morphologically from outflow-tract PVCs, so
+    pooling them produces a heterogeneous target for a morphology-based
+    classifier. Restricting the cohort trades sample size for homogeneity;
+    both numbers are printed so the trade-off is explicit.
+    """
+    before_pat = df["patient"].nunique()
+    before_pos = df.drop_duplicates("patient")["label"].sum()
+
+    if inferior_only:
+        if "inferior_axis" not in df.columns:
+            raise SystemExit("--inferior-axis-only needs an 'inferior_axis' column in the "
+                             "manifest; re-run prepare_dataset.py to regenerate it.")
+        df = df[pd.to_numeric(df["inferior_axis"], errors="coerce") == 1]
+    if outflow_only:
+        df = df[df["site"].astype(str).str.strip().str.upper().isin(OUTFLOW_SITES)]
+    if sites:
+        want = {s.strip().upper() for s in sites}
+        df = df[df["site"].astype(str).str.strip().str.upper().isin(want)]
+
+    if df.empty:
+        raise SystemExit("Cohort restriction removed every recording.")
+    if inferior_only or outflow_only or sites:
+        pat = df.drop_duplicates("patient")
+        print(f"\ncohort restricted: {before_pat} -> {pat.shape[0]} patients, "
+              f"{int(before_pos)} -> {int(pat['label'].sum())} recurrence events")
+    return df.reset_index(drop=True)
+
+
 def cap_per_patient(df: pd.DataFrame, cap: int, seed: int) -> pd.DataFrame:
     """Limit how many recordings each patient contributes.
 
@@ -581,7 +622,12 @@ def main():
     src.add_argument("--data", help="path to a train-test-folder style directory")
     src.add_argument("--manifest", help="path to manifest.csv from prepare_dataset.py")
     ap.add_argument("--out", default="results_recurrence")
-    ap.add_argument("--sites", nargs="*", default=SITES)
+    ap.add_argument("--sites", nargs="*", default=None,
+                    help="restrict to these site labels (manifest mode)")
+    ap.add_argument("--inferior-axis-only", action="store_true",
+                    help="keep only patients with an inferior PVC axis")
+    ap.add_argument("--outflow-only", action="store_true",
+                    help="keep only outflow-tract sites (RVOT/LVOT group/intramural)")
     ap.add_argument("--folds", type=int, default=5)
     ap.add_argument("--epochs", type=int, default=60)
     ap.add_argument("--batch-size", type=int, default=32)
@@ -618,7 +664,10 @@ def main():
     if args.manifest:
         df = build_index_from_manifest(args.manifest)
     else:
-        df = build_index(args.data, args.patient_id, args.patient_pattern, args.sites)
+        df = build_index(args.data, args.patient_id, args.patient_pattern,
+                         args.sites or SITES)
+    df = restrict_cohort(df, args.inferior_axis_only, args.outflow_only,
+                         args.sites if args.manifest else None)
     df = cap_per_patient(df, args.max_per_patient, args.seed)
     report_index(df)
 
