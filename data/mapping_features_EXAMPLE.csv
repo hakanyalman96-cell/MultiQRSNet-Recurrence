@@ -1,0 +1,9 @@
+patient_folder,n_points,earliest_LAT,LAT_median,bip_at_earliest,uni_at_earliest,bip_min,bip_median,uni_median
+synthetic_patient_01,142,-31.5,-4.2,1.842,7.410,0.201,1.905,6.883
+synthetic_patient_02,98,-24.0,-2.8,0.640,3.220,0.150,1.110,4.021
+synthetic_patient_03,205,-40.1,-6.5,2.905,12.640,0.410,3.220,10.774
+synthetic_patient_04,76,-19.8,-1.9,0.512,2.980,0.098,0.870,3.559
+synthetic_patient_05,163,-35.2,-5.1,2.110,9.870,0.330,2.400,8.145
+synthetic_patient_06,120,-27.6,-3.4,0.720,4.010,0.180,1.260,4.630
+synthetic_patient_07,188,-38.9,-5.8,2.640,11.220,0.390,2.980,9.512
+synthetic_patient_08,54,-16.4,-1.2,0.430,2.510,0.077,0.640,2.980
