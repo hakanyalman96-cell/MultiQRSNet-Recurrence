@@ -109,12 +109,12 @@ ax[0].bar(xb,[r*100 for r in rates],color=BLUE,alpha=.75,edgecolor=INK,width=.72
 ax[0].errorbar(xb,[r*100 for r in rates],yerr=[[(r-l)*100 for r,l in zip(rates,lo)],[(h-r)*100 for r,h in zip(rates,hi)]],fmt='none',ecolor=INK,capsize=3,lw=1)
 ax[0].set_xticks(xb);ax[0].set_xticklabels([f"{b['label']}\nn={b['n']}" for b in rb],fontsize=8)
 ax[0].set_xlabel("Unipolar voltage at earliest site (mV)");ax[0].set_ylabel("Observed 3-month recurrence (%)")
-ax[0].set_title("A",loc='left',fontweight='bold');ax[0].set_ylim(0,55)
+ax[0].set_title("A",loc='left',fontweight='bold');ax[0].set_ylim(0,70)
 ct=R['cutoff_table']
 cx=[r['cut'] for r in ct]
 for key,lab,c,mk in [('sens','Sensitivity',VERM,'o'),('spec','Specificity',BLUE,'s'),('ppv','PPV',GREEN,'^'),('npv','NPV',"#8856a7",'D')]:
     ax[1].plot(cx,[r[key] for r in ct],marker=mk,color=c,lw=1.6,ms=5,label=lab)
 ax[1].axvline(R['cut'],ls='--',color=GREY,lw=1);ax[1].text(R['cut']+0.1,0.02,f"Youden ≤{R['cut']:.1f}",fontsize=7.5,color=GREY)
 ax[1].set_xlabel("Unipolar-voltage cut-off (≤ mV)");ax[1].set_ylabel("Operating characteristic")
-ax[1].set_title("B",loc='left',fontweight='bold');ax[1].set_ylim(0,1);ax[1].legend(fontsize=7.5,frameon=False,ncol=2,loc='upper center')
+ax[1].set_title("B",loc='left',fontweight='bold');ax[1].set_ylim(0,1.14);ax[1].set_yticks([0,0.2,0.4,0.6,0.8,1.0]);ax[1].legend(fontsize=7.5,frameon=False,ncol=4,loc='upper center',handlelength=1.6,columnspacing=1.0)
 fig.tight_layout();fig.savefig("Figure_4.png",dpi=400,bbox_inches='tight');fig.savefig("Figure_4.pdf",bbox_inches='tight');print("Fig4 saved")

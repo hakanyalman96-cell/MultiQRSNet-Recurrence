@@ -19,7 +19,7 @@ arr(30,105.5,30,100.5)
 box(80,104,34,9,["Excluded (n = 2)","• Missing / uninterpretable","   electroanatomic map export"],fc=LGREY,fs=8.0,align="left")
 ax.add_patch(FancyArrowPatch((30,103),(63,104),arrowstyle="-|>",mutation_scale=11,lw=1.1,color=INK))
 box(30,94,46,8.5,["Analysis cohort (n = 157)"],fc=LBLUE)
-ax.text(50,85.5,"Arrhythmia origin  (12-lead ECG, confirmed by mapping)",ha="center",fontsize=8.2,style="italic",color=GREY)
+ax.text(56,93,"Arrhythmia origin\n(12-lead ECG, confirmed by mapping)",ha="left",va="center",fontsize=8.2,style="italic",color=GREY)
 # four parallel origin branches
 xs=[14,38,62,86]
 labs=[("RVOT",OG['RVOT']),("Other outflow-tract",OG['otherOT']),("Presumed intramural*",OG['intramural']),("Non-outflow-tract",OG['nonOT'])]
@@ -29,11 +29,11 @@ for x,(nm,(nn,rec)) in zip(xs,labs):
     arr(x,69.5,x,63)
 box(50,57,74,9,[f"3-month Holter outcome:  {R['n']-R['events']} success ({100*(R['n']-R['events'])/R['n']:.1f}%)  vs  {R['events']} recurrence ({100*R['events']/R['n']:.1f}%)","Recurrence = <80% PVC-burden reduction, same PVC morphology confirmed"],fc=LBLUE,fs=8.4)
 arr(50,52.5,50,46.5)
-box(50,39,80,13,["Primary analysis — unipolar voltage at the earliest activation site",
- "Association with recurrence independent of origin (Firth regression)",
- "· incremental value over origin by leakage-free 5-fold cross-validation",
- "· sensitivity analysis adjusting for atrial fibrillation and PVC-morphology count"],fc="white",ec=BLUE,fs=8.0,lw=1.4)
-ax.text(2,24,"* All presumed-intramural foci were of outflow-tract origin (required biventricular mapping and/or ablation at two adjacent chambers).\n"
+box(50,38,86,15,["Primary analysis — unipolar voltage at the earliest activation site",
+ "Association with recurrence independent of origin (Firth regression, three origin models)",
+ "· incremental value over origin: leakage-free 5-fold cross-validation repeated 100 times",
+ "· post hoc sensitivity models: + atrial fibrillation and PVC-morphology count; + coupling interval"],fc="white",ec=BLUE,fs=8.0,lw=1.4)
+ax.text(2,22,"* All presumed-intramural foci were of outflow-tract origin (required biventricular mapping and/or ablation at two adjacent chambers).\n"
         "  Points acquired only at >10 g contact force with a SmartTouch SF catheter.  RVOT, right-ventricular outflow tract.",
         ha="left",va="top",fontsize=7.2,color="#555")
 fig.savefig("Figure_1.png",dpi=400,bbox_inches="tight");fig.savefig("Figure_1.pdf",bbox_inches="tight");print("Fig1 saved")
