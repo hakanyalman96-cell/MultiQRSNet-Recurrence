@@ -34,6 +34,6 @@ box(50,38,86,15,["Primary analysis — unipolar voltage at the earliest activati
  "· incremental value over origin: leakage-free 5-fold cross-validation repeated 100 times",
  "· post hoc sensitivity models: + atrial fibrillation and PVC-morphology count; + coupling interval"],fc="white",ec=BLUE,fs=8.0,lw=1.4)
 ax.text(2,22,"* All presumed-intramural foci were of outflow-tract origin (required biventricular mapping and/or ablation at two adjacent chambers).\n"
-        "  Points acquired only at >10 g contact force with a SmartTouch SF catheter.  RVOT, right-ventricular outflow tract.",
+        "  Points acquired under real-time contact-force guidance (SmartTouch SF catheter).  RVOT, right-ventricular outflow tract.",
         ha="left",va="top",fontsize=7.2,color="#555")
 fig.savefig("Figure_1.png",dpi=400,bbox_inches="tight");fig.savefig("Figure_1.pdf",bbox_inches="tight");print("Fig1 saved")

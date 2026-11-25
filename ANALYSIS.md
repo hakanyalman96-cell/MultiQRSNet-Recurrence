@@ -20,7 +20,7 @@ inspectable; `data/mapping_features_EXAMPLE.csv` shows the expected feature layo
 | `corrections.example.json` | Template for optional, git-ignored dataset-specific cleaning (no identifiers in code) |
 
 See `data/DATA_DICTIONARY.md` for the feature schema, CARTO acquisition/annotation details
-(SmartTouch SF catheter, >10 g contact-force acquisition, Wilson-central-terminal unipolar
+(SmartTouch SF catheter, real-time contact-force-guided acquisition, Wilson-central-terminal unipolar
 reference, max −dV/dt unipolar LAT, ARA reference on lead V5, no contact-force data in the export), and the
 `corrections.json` convention.
 
