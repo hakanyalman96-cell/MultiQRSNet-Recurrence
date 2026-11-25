@@ -20,11 +20,12 @@ Invalid/sentinel voltages (|value| ≥ 9000) are discarded before aggregation.
 
 - **Catheter:** a single catheter type throughout — open-irrigated 3.5 mm contact-force–sensing
   catheter with surround-flow irrigation (ThermoCool SmartTouch SF, Biosense Webster).
-- **Contact force:** points were acquired only at adequate catheter–tissue contact
-  (**contact force > 10 g**). The exported studies (CARTO 3 v7.5) contain no point-level contact-force
+- **Contact force:** points were acquired under continuous real-time contact-force display with stable
+  catheter–tissue contact (generally ≥5 g, per laboratory practice). The exported studies contain no point-level contact-force
   files; VisiTag contact-force logs were absent or empty, and the radiofrequency logs (`RF_*.txt`)
   record power, duration, impedance and temperature but not contact force. Contact force is therefore
-  not available as a column here or as a model covariate.
+  not available as a column here or as a model covariate, and adherence to the acquisition criterion
+  cannot be verified retrospectively.
 - **Unipolar reference:** Wilson's central terminal (0.5–100 Hz); bipolar from the distal pair (30–500 Hz).
 - **Local activation annotation:** maximum negative dV/dt of the unipolar electrogram.
 - **Reference annotation:** set automatically by the CARTO 3 v7 Advanced Reference Annotation algorithm on
