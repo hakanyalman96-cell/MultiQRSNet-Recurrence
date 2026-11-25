@@ -21,12 +21,14 @@ Invalid/sentinel voltages (|value| ≥ 9000) are discarded before aggregation.
 - **Catheter:** a single catheter type throughout — open-irrigated 3.5 mm contact-force–sensing
   catheter with surround-flow irrigation (ThermoCool SmartTouch SF, Biosense Webster).
 - **Contact force:** points were acquired only at adequate catheter–tissue contact
-  (**contact force > 10 g**). The numeric per-point contact-force value is **not retained in the
-  CARTO point export**, so it is not available as a column here or as a model covariate.
+  (**contact force > 10 g**). The exported studies (CARTO 3 v7.5) contain no point-level contact-force
+  files; VisiTag contact-force logs were absent or empty, and the radiofrequency logs (`RF_*.txt`)
+  record power, duration, impedance and temperature but not contact force. Contact force is therefore
+  not available as a column here or as a model covariate.
 - **Unipolar reference:** Wilson's central terminal (0.5–100 Hz); bipolar from the distal pair (30–500 Hz).
 - **Local activation annotation:** maximum negative dV/dt of the unipolar electrogram.
-- **Reference annotation:** CARTO 3 v7 Advanced Reference Annotation algorithm (lead II R-wave peak in
-  inferior-axis cases). Relative LAT is an intra-beat offset; only its ranking (earliest site) is used.
+- **Reference annotation:** set automatically by the CARTO 3 v7 Advanced Reference Annotation algorithm on
+  surface lead V5 in all patients. Relative LAT is an intra-beat offset; only its ranking (earliest site) is used.
 
 ## Clinical / outcome spreadsheet — NOT shared (identifiable)
 
@@ -37,9 +39,10 @@ headers may vary:
 |---|---|---|
 | Patient name | `isim` / `name` | Joined to `patient_folder` after normalization |
 | Recurrence | `recurrence` | Outcome; 1 = recurrence (<80% burden reduction @3-month Holter, same PVC morphology), 0 = success |
+| Coupling interval | `coupling interval` | Covariate for the second post hoc sensitivity model |
 | Localisation | `localisation` | Arrhythmia origin (RVOT, LVOT, LCC/RCC/NCC, AMC, LV summit, intramural, papillary, fascicular, …), assigned from 12-lead ECG and confirmed by mapping |
-| Atrial fibrillation | `fibrillation` | Covariate for the sensitivity model |
-| Number of PVC morphologies | `morpholog` | Covariate for the sensitivity model |
+| Atrial fibrillation | `fibrillation` | Covariate for the post hoc sensitivity models |
+| Number of PVC morphologies | `morpholog` | Covariate for the post hoc sensitivity models |
 | LV ejection fraction | `ejection` | Baseline characteristic |
 | PVC burden (24-h Holter) | `burden` | Baseline characteristic |
 
