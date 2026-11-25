@@ -1,0 +1,14 @@
+# Identifiable inputs — never commit
+corrections.json
+mapping_features.csv
+*.xlsx
+*.xls
+clinical*
+*_Point_Export.xml
+Export_*.zip
+# Generated outputs
+results.json
+table1.json
+feature_screen.json
+__pycache__/
+*.pyc

@@ -1,0 +1,9 @@
+{
+  "_comment": "Optional, dataset-specific. Copy to corrections.json (git-ignored) and fill with your own keys. Keys are normalized patient_folder names.",
+  "voltage_fixes": {
+    "synthetic_patient_01": {"uni_at_earliest": 7.41, "bip_at_earliest": 1.84}
+  },
+  "name_aliases": {
+    "synthetic name spelling a": "synthetic canonical name"
+  }
+}
